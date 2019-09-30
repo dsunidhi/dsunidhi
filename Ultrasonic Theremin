@@ -1,0 +1,29 @@
+#include <Ultrasonic.h>
+#include <toneAC.h>
+
+Ultrasonic ultrasonic(12, 13);
+
+#define TONE_VOLUME   10   // 1-20 //output sound pin(positive of speaker)
+int distance;
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  delay(30);                    // Wait 30ms between pings (about 33 pings/sec). 29ms should be the shortest delay between pings.
+  distance = ultrasonic.read(); //reads the distance from the sensor
+if(distance < 120 )             //range is about 120 cm
+{
+  int freq= 1500-distance*10;   //calculates a corresponding freqeuncy
+  toneAC(freq, TONE_VOLUME);    //plays the sound!(output through speaker- pin10)
+  
+  Serial.println(distance);     //just for monitoring if required
+}
+else
+{
+ noToneAC();  //out of range 
+}
+
+
+}
