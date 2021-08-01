@@ -1,0 +1,335 @@
+
+from datascience import *
+import matplotlib
+matplotlib.use('Agg', warn=False)
+get_ipython().run_line_magic('matplotlib', 'inline')
+import matplotlib.pyplot as plots
+plots.style.use('fivethirtyeight')
+import pandas as pd
+import numpy as np
+from scipy import stats
+import warnings
+warnings.simplefilter(action="ignore", category=FutureWarning)
+from urllib.request import urlopen 
+import re
+def read_url(url): 
+    return re.sub('\\s+', ' ', urlopen(url).read().decode())
+import collections 
+
+
+# In[27]:
+
+
+def strip(str):# lowercase, and removes other things
+    stripped=str.lower()
+    for x in str:
+        if ord(x)<ord('a') or ord(x)>ord('z'):
+            stripped=stripped.replace(x, '')
+    return stripped
+
+
+
+
+# In[33]:
+
+
+def encode(str, shift):# simple encoding by one shift
+        shift=shift%26
+        ans=""
+        a=ord('a')
+        z=ord('z')
+
+        for x in str:
+            oval=ord(x)
+            nval=oval + shift
+
+            if (nval>z):
+                nval+=(-z+a-1)
+    
+            ans=ans+chr(nval)
+        return ans
+
+
+# In[34]:
+
+
+def decode(str, shift):
+       shift=shift%26
+       ans=""
+       a=ord('a')
+       z=ord('z')
+
+       for x in str:
+           oval=ord(x)
+           nval=oval - shift
+
+           if (nval<a):
+               nval+=(z-a+1)
+          
+           ans=ans+chr(nval)
+       return ans
+
+
+# In[35]:
+
+
+def number_key(word_key):
+    nkey=np.empty[len(word_key)]
+    for i in range(len(word_key)):
+        number_val=ord(word_key[i])-ord('a')+1
+        nkey=np.append(nkey, number_val)
+    return nkey
+
+
+# In[36]:
+
+
+#shift encodes a string using another string key
+def shift_enc(str, key):
+        key=key.lower()
+        nkey=number_key(key)#translated number key
+        ans=''
+    
+        for i in range(len(str)):
+            t=i%(len(key))
+            t=int(nkey[t])# calculates shift to be applied in that iteration
+            
+            ans+= encode(''+str[i], t)# inputs the relevant character as string, and calculated shift 
+        return ans
+
+
+# In[37]:
+
+
+def shift_dec(str, key):
+        nkey=number_key(key)
+        ans=''
+    
+        for i in range(len(str)):
+            t=i%(len(key))
+            t=int(nkey[t])# calculates shift to be applied in that iteration
+            
+            ans+= decode(''+str[i], t)# inputs the relevant character as string, and calculated shift 
+        return ans
+
+
+
+
+# In[64]:
+
+
+#segregates original string into sub strings according to test key length, returns an array of strings
+def segregate(str, key_length):
+    seg_strings=make_array()
+    sub_string=''
+    for modno in range(key_length):
+        for i in range(len(str)):
+            if(i%key_length==modno):
+                sub_string+=str[i]
+            
+        seg_strings=np.append(seg_strings, sub_string)
+        sub_string=''
+    
+    return seg_strings
+
+
+
+
+
+# In[40]:
+
+
+#same function as segregate, but slower
+def segregatet(string, key_length):
+    segs=["" for i in range(key_length)]
+    for i in range(len(string)):
+        modno=i%key_length
+        segs[modno]+=string[i]
+    return np.asarray(segs)
+
+
+# In[42]:
+
+
+def to_arr(str):# converts string to np array
+    array=make_array()
+    for x in str:
+        array=np.append(array, x)
+    return array
+
+
+# In[43]:
+
+
+def alphabets():#creates standard alphabets column so I can add in my display functions
+    return to_arr('abcdefghijklmnopqrstuvwxyz')
+alphabets()
+
+
+# In[44]:
+
+
+#still slower than dis
+def dist(str):
+    str_arr=to_arr(str)
+    dist_arr=make_array()
+    ln=len(str_arr)
+    for alphabet in to_arr(alphabets()):
+#        count=Table().with_column('String', to_arr(str)).where(0, alphabet).num_rows
+         count=np.count_nonzero(str_arr==alphabet)/ln#gives proportion of that alphabet in string(count/total length)
+         dist_arr=np.append(dist_arr, count)
+
+    return dist_arr
+
+
+# In[61]:
+
+
+# takes in a string, and outputs an array containing proportion of count of each alphabet
+def dis(str):
+    dis=make_array()
+    count=collections.Counter(str)
+    for letter in alphabets():
+        dis=np.append(dis, count[letter]/len(str))
+    return dis
+
+
+# In[59]:
+
+
+#cant append arrays to arrays, have to do list, then array
+def all_dis(seg_str):# generates complete array of all the distributions of the segregated strings(array of arrays)
+    temp_list=[]
+    
+    for x in seg_str:# x is one substring
+        temp_list.append(dis(x))
+    all_dist=np.asarray(temp_list)
+    return all_dist
+
+
+# In[47]:
+
+
+def display_dis(dis):# displays one distribution(of one substring)
+    return Table().with_columns("Alphabets", alphabets(), 'Distribution', dis)
+
+
+# In[48]:
+
+
+def display_alldis(all_dis):# displays all distributions of all substrings
+    all_dis_table=Table().with_column('Alphabets', alphabets())
+    for i in range(len(all_dis)):#modno
+        dis=all_dis[i]
+        all_dis_table=all_dis_table.with_column('Substring Distribution:'+str(i), dis)
+        
+    return all_dis_table
+
+
+# In[49]:
+
+
+#Next: Analyse the distributions in comparison to std dist using corellation
+
+
+# In[50]:
+
+
+#only for one distribution
+#NOTE: zero shift corresponds to '`'
+def shift(dis, shift):
+    shifted=make_array()
+    for i in range(len(dis)):
+        place=(i+shift)%len(dis)# starts appending from a shift ahead, and keeps adding till finishes loop
+        shifted=np.append(shifted, dis.item(place))
+    return shifted 
+
+
+# In[51]:
+
+
+#checks all possible shifts, and outputs best character shift and its pearson cor rank
+#for one distribution
+def cor(dis):
+    highest_cor=0
+    best_shift=0
+    for test_shift in range(26):
+        cor=stats.pearsonr(shift(dis, test_shift), std_dis)[0]#pearsonr function output: first el has rank
+        if cor>highest_cor:
+            highest_cor=cor
+            best_shift=chr(test_shift+ord('a')-1)# in character
+            
+    return make_array(best_shift, highest_cor)
+
+
+# In[52]:
+
+
+#strings together all best character shifts for all the distributions, outputs av corellation of all char shifts
+#outputs keyword, and its cor
+#one keylength
+def best_key(all_dis):
+    b_key=""# best keyword
+    b_cors=make_array()#best character corellation array
+    for dis in all_dis:
+        best_shift=cor(dis)# contains both char shift and its cor
+        b_key+= best_shift.item(0)# adds char shift
+        b_cors=np.append(b_cors, best_shift.item(1))# adds its corellation
+        
+    cor_av=np.average(b_cors.astype(np.float))#calculates average
+    return [b_key, cor_av]
+
+
+# In[53]:
+
+
+#calls all the functions on string, finds keys for all keylengths, and outputs sorted table of results
+def decrypt(orig_str, test_range):
+    string=strip(orig_str)
+    results=Table(make_array('Test Keylength', 'Best Key', 'Average Corellation'))
+    for test_keylength in range(1, test_range):
+        segregated_strings=segregate(string, test_keylength)
+        all_distributions=all_dis(segregated_strings)
+        b_arr=best_key(all_distributions)
+        results=results.with_row([test_keylength, b_arr[0], b_arr[1]])# adds results of that length to table
+        results=results.sort(2, descending=True)#sorts
+    return results
+
+
+# In[54]:
+
+
+def check(string, key):
+    print('Guessed Decryption:')
+    return shiftdec(string, key)
+
+
+# In[55]:
+
+
+std_table=Table.read_table('standard.csv')
+std_dis=std_table.column(1)
+
+
+# In[56]:
+
+
+#manual test 1
+little_women_url = 'https://www.inferentialthinking.com/data/little_women.txt'
+lw_text = read_url(little_women_url)
+chapters = lw_text.split('CHAPTER ')[1:]
+text=chapters[10]
+
+
+# In[62]:
+
+
+encoded=shift_enc(strip(text), 'helloworldthisismyfirstseriouspersonalprojectwhichissogreatandnice')
+
+
+# In[63]:
+
+
+decrypt(encoded, 100)
+
+
